@@ -3,6 +3,10 @@ import datetime
 from fpdf import FPDF
 import json, os
 
+if "items" not in st.session_state:
+    st.session_state.items = []
+
+
 st.set_page_config(page_title="Royal Billing", layout="centered")
 
 # --- SUBSCRIPTION LOGIC ---
