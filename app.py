@@ -2,6 +2,7 @@ import streamlit as st
 import datetime
 from fpdf import FPDF
 import os
+from num2words import num2words
 
 st.set_page_config(page_title="Royal Billing", layout="centered")
 
@@ -9,122 +10,169 @@ if "bill_items" not in st.session_state:
     st.session_state.bill_items = []
 
 # ==========================
-# YAHAN HAR CLIENT KA NAAM BADLO
+# YAHAN HAR CLIENT KA NAAM BADLO - LOCKED
 # ==========================
-SHOP_NAME = "Sharma Garments"  # yahan naam badlo
-SHOP_ADDR = "Itwari, Nagpur"   # yahan address badlo
-SHOP_MOBILE = "98230XXXXX"      # yahan mobile badlo
+SHOP_NAME = "Sharma Garments"
+SHOP_ADDR = "Itwari, Nagpur"
+SHOP_MOBILE = "98230XXXXX"
+MY_NAME = "Powered by M Saad Software - 7387246146 | Dhad"
 # ==========================
 
-# --- SUBSCRIPTION LOGIC ---
-TRIAL_DAYS = 7
+# --- TRIAL ---
 FILE = "install_date.txt"
-
 def get_install_date():
     if not os.path.exists(FILE):
-        with open(FILE, "w") as f:
-            f.write(str(datetime.date.today()))
+        with open(FILE, "w") as f: f.write(str(datetime.date.today()))
         return datetime.date.today()
-    else:
-        try:
-            with open(FILE, "r") as f:
-                return datetime.date.fromisoformat(f.read().strip())
-        except:
-            return datetime.date.today()
+    try:
+        with open(FILE, "r") as f: return datetime.date.fromisoformat(f.read().strip())
+    except: return datetime.date.today()
 
 install_date = get_install_date()
-today = datetime.date.today()
-days_used = (today - install_date).days
-days_left = TRIAL_DAYS - days_used
+days_left = 7 - (datetime.date.today() - install_date).days
 
 if days_left < 0:
-    st.error("⏰ Aapka 7 Din ka Free Trial Khatam Ho Gaya Hai")
-    st.markdown("### Billing Pro - Subscription Le\n**Monthly: Rs 199 | Yearly: Rs 1999**")
-    st.link_button("💳 Abhi Payment Karo", "https://razorpay.me/@royalclothing")
-    st.info("Payment ke baad WhatsApp karo: 8000000000 par")
+    st.error("Trial Khatam")
+    st.link_button("Payment Karo", "https://razorpay.me/@royalclothing")
     st.stop()
 else:
-    st.success(f"✅ Trial Active Hai - {days_left} Din Bache Hai")
+    st.success(f"Trial Active Hai - {days_left} Din Bache Hai")
 
-# --- APP UI ---
 st.title(f"👑 {SHOP_NAME}")
 st.caption(f"{SHOP_ADDR} | {SHOP_MOBILE}")
 st.write("---")
 
-c1, c2, c3 = st.columns(3)
+# --- ADD ITEM WITH GST ---
+c1,c2,c3,c4 = st.columns(4)
 with c1: item_name = st.text_input("Item Name")
 with c2: qty = st.number_input("Qty", 1, 100, 1)
-with c3: price = st.number_input("Price", 0)
+with c3: price = st.number_input("Price", 0.0)
+with c4: gst = st.number_input("GST %", 0.0, 40.0, 18.0)
 
 if st.button("Add Item"):
     if item_name:
-        st.session_state.bill_items.append({"name": item_name, "qty": qty, "price": price})
+        st.session_state.bill_items.append({"name":item_name,"qty":qty,"price":price,"gst":gst})
         st.rerun()
 
-total = 0
+# Show items
+subtotal = 0
 for i, it in enumerate(st.session_state.bill_items):
-    amt = it['qty'] * it['price']
-    total += amt
-    col1, col2 = st.columns([4,1])
-    col1.write(f"{i+1}. {it['name']} - {it['qty']} x {it['price']}")
-    col2.write(f"Rs {amt}")
+    amt = it['qty']*it['price']
+    subtotal += amt
+    st.write(f"{i+1}. {it['name']} | {it['qty']} x {it['price']} = {amt} | GST {it['gst']}%")
 
-st.write("---")
-st.subheader(f"Total: Rs {total}")
+discount = st.number_input("Discount Rs", 0.0)
 cust_name = st.text_input("Customer Name", "Customer")
+cust_phone = st.text_input("Customer Phone", "")
 
 if st.button("🧾 Bill Banao & PDF Download Karo"):
+    # Calculation
+    total_tax = 0
+    for it in st.session_state.bill_items:
+        total_tax += (it['qty']*it['price'] * it['gst']/100)
+
+    final_total = subtotal + total_tax - discount
+    cgst = total_tax/2
+    sgst = total_tax/2
+
     pdf = FPDF()
     pdf.add_page()
-    
     # Header
-    pdf.set_font("Arial", "B", 18)
-    pdf.cell(0, 12, SHOP_NAME, new_x="LMARGIN", new_y="NEXT", align="C")
-    pdf.set_font("Arial", "", 11)
-    pdf.cell(0, 7, f"{SHOP_ADDR} | Mob: {SHOP_MOBILE}", new_x="LMARGIN", new_y="NEXT", align="C")
-    pdf.line(10, pdf.get_y()+2, 200, pdf.get_y()+2)
-    pdf.ln(8)
-    
-    # Customer Details
-    pdf.set_font("Arial", "", 12)
-    pdf.cell(0, 8, f"Customer: {cust_name}", new_x="LMARGIN", new_y="NEXT")
-    pdf.cell(0, 8, f"Date: {today} | Bill No: {today.strftime('%d%m%Y')}{len(st.session_state.bill_items)}", new_x="LMARGIN", new_y="NEXT")
-    pdf.ln(4)
-
-    # Table Header
-    pdf.set_font("Arial", "B", 12)
-    pdf.set_fill_color(240,240,240)
-    pdf.cell(90, 10, " Item", border=1, fill=True)
-    pdf.cell(30, 10, " Qty", border=1, align="C", fill=True)
-    pdf.cell(35, 10, " Price", border=1, align="C", fill=True)
-    pdf.cell(35, 10, " Amount", border=1, align="C", fill=True)
-    pdf.ln()
-
-    # Table Rows
-    pdf.set_font("Arial", "", 11)
-    for it in st.session_state.bill_items:
-        amt = it['qty'] * it['price']
-        pdf.cell(90, 9, f" {it['name']}", border=1)
-        pdf.cell(30, 9, f"{it['qty']}", border=1, align="C")
-        pdf.cell(35, 9, f"{it['price']}", border=1, align="C")
-        pdf.cell(35, 9, f"{amt}", border=1, align="C")
-        pdf.ln()
-    
-    # Total
-    pdf.set_font("Arial", "B", 13)
-    pdf.cell(155, 11, " TOTAL", border=1, align="R")
-    pdf.cell(35, 11, f"Rs {total}", border=1, align="C")
+    pdf.set_fill_color(16, 37, 77)
+    pdf.rect(0,0,210,28,'F')
+    pdf.set_y(8)
+    pdf.set_font("Arial","B",14)
+    pdf.set_text_color(255,215,0)
+    pdf.cell(0,8,SHOP_NAME,align="C",ln=True)
+    pdf.set_font("Arial","",9)
+    pdf.set_text_color(255,255,255)
+    pdf.cell(0,5,f"{SHOP_ADDR} | Ph: {SHOP_MOBILE}",align="C",ln=True)
     pdf.ln(15)
 
-    # Footer - TERA NAAM
-    pdf.set_font("Arial", "I", 9)
-    pdf.cell(0, 8, "Thank You! Visit Again", align="C", new_x="LMARGIN", new_y="NEXT")
-    pdf.set_font("Arial", "B", 9)
-    pdf.cell(0, 6, "Powered by Mohammad Saad | Support: 8000000000", align="C", new_x="LMARGIN", new_y="NEXT")
-    
+    # Bill Info
+    bill_no = f"INV-{datetime.date.today().strftime('%Y-%m%d')}-{len(st.session_state.bill_items)}0{st.session_state.bill_items[0]['qty'] if st.session_state.bill_items else ''}"
+    pdf.set_text_color(0,0,0)
+    pdf.set_font("Arial","B",8)
+    pdf.cell(100,5,f"Bill No: {bill_no}")
+    pdf.cell(0,5,f"Date: {datetime.date.today().strftime('%d-%m-%Y')}",align="R",ln=True)
+    pdf.cell(100,5,f"Bill To: {cust_name}")
+    pdf.cell(0,5,f"Phone: {cust_phone}",align="R",ln=True)
+    pdf.set_font("Arial","",7)
+    pdf.cell(0,5,"Supply Type: Intra-State (CGST+SGST)",ln=True)
+    pdf.ln(3)
+
+    # Table
+    pdf.set_font("Arial","B",8)
+    pdf.set_fill_color(16, 37, 77)
+    pdf.set_text_color(255,215,0)
+    pdf.cell(55,7,"Item",1,0,"C",True)
+    pdf.cell(15,7,"Qty",1,0,"C",True)
+    pdf.cell(30,7,"Price",1,0,"C",True)
+    pdf.cell(20,7,"GST%",1,0,"C",True)
+    pdf.cell(30,7,"Tax Amt",1,0,"C",True)
+    pdf.cell(30,7,"Total",1,1,"C",True)
+
+    pdf.set_font("Arial","",8)
+    pdf.set_text_color(0,0,0)
+    for it in st.session_state.bill_items:
+        tax_amt = it['qty']*it['price']*it['gst']/100
+        total_item = it['qty']*it['price']
+        pdf.cell(55,7,f"{it['name']}",1,0,"C")
+        pdf.cell(15,7,f"{it['qty']}",1,0,"C")
+        pdf.cell(30,7,f"{it['price']:.2f}",1,0,"C")
+        pdf.cell(20,7,f"{it['gst']}%",1,0,"C")
+        pdf.cell(30,7,f"{tax_amt:.2f}",1,0,"C")
+        pdf.cell(30,7,f"{total_item:.2f}",1,1,"C")
+
+    # Totals
+    pdf.set_font("Arial","",8)
+    pdf.cell(120,6,"",0,0)
+    pdf.cell(30,6,"Subtotal:",0,0,"R")
+    pdf.cell(30,6,f"Rs {subtotal:.2f}",0,1,"R")
+    pdf.cell(120,6,"",0,0)
+    pdf.cell(30,6,"CGST:",0,0,"R")
+    pdf.cell(30,6,f"Rs {cgst:.2f}",0,1,"R")
+    pdf.cell(120,6,"",0,0)
+    pdf.cell(30,6,"SGST:",0,0,"R")
+    pdf.cell(30,6,f"Rs {sgst:.2f}",0,1,"R")
+    pdf.set_font("Arial","B",8)
+    pdf.set_text_color(180,70,0)
+    pdf.cell(120,6,"",0,0)
+    pdf.cell(30,6,"Total GST:",0,0,"R")
+    pdf.cell(30,6,f"Rs {total_tax:.2f}",0,1,"R")
+    pdf.set_text_color(0,150,0)
+    pdf.cell(120,6,"",0,0)
+    pdf.cell(30,6,"Discount:",0,0,"R")
+    pdf.cell(30,6,f"- Rs {discount:.2f}",0,1,"R")
+    pdf.ln(2)
+    pdf.set_fill_color(16, 37, 77)
+    pdf.set_text_color(255,215,0)
+    pdf.cell(120,8,"FINAL PAYABLE:",1,0,"R",True)
+    pdf.cell(60,8,f"Rs {final_total:.2f}",1,1,"C",True)
+
+    pdf.ln(4)
+    pdf.set_text_color(0,0,0)
+    pdf.set_font("Arial","B",7)
+    try:
+        words = num2words(final_total, to='currency', lang='en_IN').replace(',','')
+        pdf.cell(0,5,f"In Words: {words} Only",ln=True)
+    except:
+        pdf.cell(0,5,f"In Words: {final_total} Rupees Only",ln=True)
+
+    pdf.ln(10)
+    pdf.set_font("Arial","",8)
+    pdf.cell(0,5,"For Shop",align="R",ln=True)
+    pdf.ln(6)
+    pdf.set_font("Arial","B",8)
+    pdf.cell(0,5,"Authorised Signature",align="R",ln=True)
+    pdf.ln(10)
+    pdf.set_font("Arial","I",7)
+    pdf.set_text_color(100,100,100)
+    pdf.cell(0,5,MY_NAME + " | Thank you visit again!",align="C",ln=True)
+
     pdf.output("bill.pdf")
-    with open("bill.pdf", "rb") as f:
-        st.download_button("📥 Download Bill PDF", f, file_name=f"{SHOP_NAME}_{cust_name}.pdf")
+    with open("bill.pdf","rb") as f:
+        st.download_button("📥 Download PDF", f, file_name=f"{cust_name}_Bill.pdf")
 
 if st.button("Clear Bill"):
     st.session_state.bill_items = []
