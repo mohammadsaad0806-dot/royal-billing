@@ -3,11 +3,10 @@ import datetime
 from fpdf import FPDF
 import json, os
 
-if "items" not in st.session_state:
-    st.session_state.items = []
-
-
 st.set_page_config(page_title="Royal Billing", layout="centered")
+
+if "bill_items" not in st.session_state:
+    st.session_state.bill_items = []
 
 # --- SUBSCRIPTION LOGIC ---
 TRIAL_DAYS = 7
@@ -45,20 +44,18 @@ else:
 st.title("👑 Royal Clothing - Billing")
 st.write("---")
 
-if "items" not in st.session_state:
-    st.session_state.items = []
-
 c1, c2, c3 = st.columns(3)
 with c1: item_name = st.text_input("Item Name")
 with c2: qty = st.number_input("Qty", 1, 100, 1)
 with c3: price = st.number_input("Price", 0)
 
 if st.button("Add Item"):
-    st.session_state.items.append({"name": item_name, "qty": qty, "price": price})
-    st.rerun()
+    if item_name:
+        st.session_state.bill_items.append({"name": item_name, "qty": qty, "price": price})
+        st.rerun()
 
 total = 0
-for i, it in enumerate(st.session_state.items):
+for i, it in enumerate(st.session_state.bill_items):
     amt = it['qty'] * it['price']
     total += amt
     st.write(f"{i+1}. {it['name']} - {it['qty']} x {it['price']} = Rs {amt}")
@@ -71,16 +68,16 @@ if st.button("🧾 Bill Banao & PDF Download Karo"):
     pdf = FPDF()
     pdf.add_page()
     pdf.set_font("Arial", "B", 16)
-    pdf.cell(200, 10, "Royal Clothing - Nagpur", ln=True, align="C")
+    pdf.cell(200, 10, "Royal Clothing - Nagpur", new_x="LMARGIN", new_y="NEXT", align="C")
     pdf.set_font("Arial", "", 12)
-    pdf.cell(200, 10, f"Customer: {cust_name} | Date: {today}", ln=True)
-    pdf.cell(200, 10, f"Total: Rs {total}", ln=True)
-    for it in st.session_state.items:
-        pdf.cell(200, 8, f"{it['name']} - {it['qty']} x {it['price']} = {it['qty']*it['price']}", ln=True)
+    pdf.cell(200, 10, f"Customer: {cust_name} | Date: {today}", new_x="LMARGIN", new_y="NEXT")
+    pdf.cell(200, 10, f"Total: Rs {total}", new_x="LMARGIN", new_y="NEXT")
+    for it in st.session_state.bill_items:
+        pdf.cell(200, 8, f"{it['name']} - {it['qty']} x {it['price']} = {it['qty']*it['price']}", new_x="LMARGIN", new_y="NEXT")
     pdf.output("bill.pdf")
     with open("bill.pdf", "rb") as f:
         st.download_button("📥 Download Bill PDF", f, file_name=f"bill_{cust_name}.pdf")
 
 if st.button("Clear Bill"):
-    st.session_state.items = []
+    st.session_state.bill_items = []
     st.rerun()
