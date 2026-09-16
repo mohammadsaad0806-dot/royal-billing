@@ -11,10 +11,10 @@ if "bill_items" not in st.session_state:
 # ============================================================
 # CLIENT LOCK - HAR CLIENT KE LIYE YAHAN NAAM BADLO
 # ============================================================
-SELLER_NAME = "Sharma Garments"
-SELLER_ADDRESS = "Itwari, Nagpur"
-SELLER_PHONE = "98230XXXXX"
-SELLER_EMAIL = "sharma@gmail.com"
+SELLER_NAME = "Mohammad Saad"
+SELLER_ADDRESS = "Dhad, Buldhana"
+SELLER_PHONE = "73872XXXXX"
+SELLER_EMAIL = "msaad@gmail.com"
 SELLER_GSTIN = ""
 MY_FOOTER = "Powered by M Saad Software - 7387246146"
 # ============================================================
