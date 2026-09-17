@@ -596,7 +596,7 @@ with c1:
 
     cust_name = st.text_input(
         "Customer Name",
-        "Abutalha"
+        ""
     )
 
 
@@ -604,13 +604,13 @@ with c2:
 
     cust_phone = st.text_input(
         "Phone",
-        "1273275821"
+        ""
     )
 
 
 cust_addr = st.text_input(
     "Address",
-    "AP road"
+    ""
 )
 
 
