@@ -1537,4 +1537,3 @@ if st.button(
     st.session_state.bill_items = []
 
     st.rerun()
-Ab bas ye 3 kaam karna hai
