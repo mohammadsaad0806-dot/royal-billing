@@ -17,9 +17,10 @@ SELLER_PHONE = "73872XXXXX"
 SELLER_EMAIL = "msaad@gmail.com"
 SELLER_GSTIN = ""
 MY_FOOTER = "Powered by M Saad Software - 7387246146"
+CLIENT_SHOP_CODE = SELLER_NAME.split()[0].upper() # Eg: MOHAMMAD
 # ============================================================
 
-# Secret - Isi se secure key banegi, isko change mat karna
+# Secret - Isko change mat karna
 SECRET = "Saad@1999_Billing"
 
 # --- WORDS LOGIC ---
@@ -48,7 +49,7 @@ def get_next_invoice_number():
     return f"INV-{datetime.now().year}-{num:05d}"
 
 # ============================================================
-# SECURE MONTHLY SYSTEM - AB GUESS NAHI HOGA
+# SECURE MONTHLY SYSTEM - HAR MAHINE ALAG KEY
 # ============================================================
 LICENSE_FILE = "license.txt"
 INSTALL_FILE = "install_date.txt"
@@ -62,8 +63,8 @@ def get_install_date():
 install_date = get_install_date()
 trial_days_left = 7 - (date.today() - install_date).days
 
-def generate_hash(shop, days):
-    raw = f"{shop.upper()}{days}{SECRET}"
+def generate_hash(shop, days, month_str):
+    raw = f"{shop.upper()}{days}{month_str}{SECRET}"
     return hashlib.sha256(raw.encode()).hexdigest()[:6].upper()
 
 def check_license():
@@ -82,11 +83,19 @@ def activate_license(key):
         shop_code = parts[1]
         days = int(parts[2])
         hash_code = parts[3]
-        real_hash = generate_hash(shop_code, days)
-        if hash_code == real_hash:
-            expiry = date.today() + timedelta(days=days)
-            open(LICENSE_FILE,"w").write(str(expiry))
-            return True
+
+        # Client ka code match hona chahiye
+        if shop_code!= CLIENT_SHOP_CODE: return False
+
+        # Is mahine, pichle aur agle mahine ki key check karo
+        for m_offset in [-1, 0, 1, 2]:
+            check_date = datetime.now() + timedelta(days=m_offset*30)
+            month_str = check_date.strftime("%m%Y")
+            real_hash = generate_hash(shop_code, days, month_str)
+            if hash_code == real_hash:
+                expiry = date.today() + timedelta(days=days)
+                open(LICENSE_FILE,"w").write(str(expiry))
+                return True
         return False
     except: return False
 
@@ -112,7 +121,7 @@ if not is_active:
     st.stop()
 
 # ============================================================
-# BILLING APP
+# BILLING APP (Baki ka code same)
 # ============================================================
 st.title(f"👑 {SELLER_NAME}")
 st.caption(f"{SELLER_ADDRESS} | {SELLER_PHONE}")
