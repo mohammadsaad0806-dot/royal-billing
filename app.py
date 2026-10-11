@@ -4,14 +4,10 @@ from datetime import datetime, date, timedelta, timezone
 import os
 import hashlib
 import hmac
-import random
 
 IST = timezone(timedelta(hours=5, minutes=30))
 
-st.set_page_config(
-    page_title="M Saad Royal Billing",
-    layout="centered"
-)
+st.set_page_config(page_title="M Saad Royal Billing", layout="centered")
 
 if "bill_items" not in st.session_state:
     st.session_state.bill_items = []
@@ -20,19 +16,17 @@ SELLER_NAME = "Mohammad Saad"
 SELLER_ADDRESS = "Dhad, Buldhana"
 SELLER_PHONE = "73872XXXXX"
 SELLER_EMAIL = "msaad@gmail.com"
-SELLER_GSTIN = ""
-
 MY_FOOTER = "Powered by M Saad Software - 7387246146"
 
-SHOP_ID = "RBL001"
-
-ADMIN_PASS = st.secrets.get("ADMIN_PASS", "Saad@786")
-
+# =========== 100% SECURE - SECRETS SE ===========
 try:
     LICENSE_SECRET = st.secrets["LICENSE_SECRET"]
+    ADMIN_PASS = st.secrets["ADMIN_PASS"]
+    SHOP_ID = st.secrets.get("SHOP_ID", "RBL001")
 except Exception:
-    st.error("License system configuration missing.")
+    st.error("⚠️ Secrets missing! Streamlit -> Settings -> Secrets me LICENSE_SECRET, ADMIN_PASS, SHOP_ID dalo")
     st.stop()
+# ================================================
 
 ONES = ["","One","Two","Three","Four","Five","Six","Seven","Eight","Nine","Ten","Eleven","Twelve","Thirteen","Fourteen","Fifteen","Sixteen","Seventeen","Eighteen","Nineteen"]
 TENS = ["","","Twenty","Thirty","Forty","Fifty","Sixty","Seventy","Eighty","Ninety"]
@@ -61,7 +55,7 @@ def get_next_invoice_number():
         if os.path.exists(file):
             with open(file, "r") as f: num = int(f.read())
         else: num = 0
-    except Exception: num = 0
+    except: num = 0
     num += 1
     with open(file, "w") as f: f.write(str(num))
     return f"INV-{datetime.now(IST).year}-{num:05d}"
@@ -77,7 +71,7 @@ def get_install_date():
         return today
     try:
         with open(INSTALL_FILE, "r") as f: return date.fromisoformat(f.read().strip())
-    except Exception: return date.today()
+    except: return date.today()
 
 install_date = get_install_date()
 trial_days_left = TRIAL_DAYS - (date.today() - install_date).days
@@ -95,20 +89,20 @@ def check_license():
         with open(LICENSE_FILE, "r") as f: expiry = date.fromisoformat(f.read().strip())
         remaining = (expiry - date.today()).days
         if remaining >= 0: return True, remaining, "Licensed"
-    except Exception: pass
+    except: pass
     return False, 0, "Expired"
 
 def activate_license(key):
     try:
         parts = key.strip().upper().split("-")
-        if len(parts)!= 5: return False
+        if len(parts)!=5: return False
         prefix, shop_id, days_text, issue_date, signature = parts
-        if prefix!= "MSAAD": return False
-        if shop_id!= SHOP_ID.upper(): return False
-        if days_text not in ("30", "365"): return False
+        if prefix!="MSAAD": return False
+        if shop_id!=SHOP_ID.upper(): return False
+        if days_text not in ("30","365"): return False
         days = int(days_text)
         try: issue = datetime.strptime(issue_date, "%Y%m%d").date()
-        except Exception: return False
+        except: return False
         difference = (date.today() - issue).days
         if difference < -1 or difference > 31: return False
         expected_signature = create_signature(shop_id, days, issue_date)
@@ -116,40 +110,30 @@ def activate_license(key):
         expiry = date.today() + timedelta(days=days)
         with open(LICENSE_FILE, "w") as f: f.write(str(expiry))
         return True
-    except Exception: return False
+    except: return False
 
 is_active, days_remaining, license_type = check_license()
 
-# ==================== SIDEBAR - SCHOOL JAISE ====================
 st.sidebar.title("🔑 License Panel")
-
 if is_active:
-    if license_type == "Trial": st.sidebar.success(f"Trial: {days_remaining} Din Bache")
+    if license_type=="Trial": st.sidebar.success(f"Trial: {days_remaining} Din Bache")
     else: st.sidebar.success(f"Licensed: {days_remaining} Din")
-else:
-    st.sidebar.error("License Khatam")
+else: st.sidebar.error("License Khatam")
 
-# LOGOUT BUTTON - NAYA
 if is_active:
     if st.sidebar.button("🔒 Logout / Lock Karo", use_container_width=True):
         if os.path.exists(LICENSE_FILE): os.remove(LICENSE_FILE)
-        st.sidebar.warning("Locked! Dubara code dalo")
+        st.sidebar.warning("Locked!")
         st.rerun()
 
 st.sidebar.write("---")
-
 key_input = st.sidebar.text_input("License Key", placeholder="MSAAD-RBL001-30-...")
-
 if st.sidebar.button("Activate Karo"):
     if activate_license(key_input):
-        st.sidebar.success("License Activated!")
-        st.rerun()
-    else:
-        st.sidebar.error("Invalid License Key!")
+        st.sidebar.success("License Activated!"); st.rerun()
+    else: st.sidebar.error("Invalid License Key!")
 
 st.sidebar.divider()
-
-# CODE GENERATOR ANDAR SE - NAYA - SCHOOL JAISA
 with st.sidebar.expander("🔐 M Saad - Code Generator"):
     pwd = st.text_input("Admin Password", type="password", key="bill_admin_pass")
     if pwd == ADMIN_PASS:
@@ -161,9 +145,8 @@ with st.sidebar.expander("🔐 M Saad - Code Generator"):
             sig = create_signature(gen_shop.upper(), gen_days, issue_date_str)
             new_key = f"MSAAD-{gen_shop.upper()}-{gen_days}-{issue_date_str}-{sig}"
             st.code(new_key)
-            st.info(f"Ye {gen_days} din ka key hai. Date: {issue_date_str} - Roz alag banega!")
-    elif pwd!= "":
-        st.error("Galat Password")
+            st.info(f"Roz alag key! Date: {issue_date_str}")
+    elif pwd!="": st.error("Galat Password")
 
 if not is_active:
     st.error("⏰ Trial / License Khatam Ho Gaya")
@@ -171,12 +154,12 @@ if not is_active:
     st.link_button("💳 Payment Karo", "https://razorpay.me/@royalclothing")
     st.stop()
 
-# ==================== BILLING APP ====================
+# ============ BILLING APP ============
 st.title(f"👑 {SELLER_NAME}")
 st.caption(f"{SELLER_ADDRESS} | {SELLER_PHONE}")
 
 st.subheader("Customer Details")
-c1, c2 = st.columns(2)
+c1,c2 = st.columns(2)
 with c1: cust_name = st.text_input("Customer Name", "")
 with c2: cust_phone = st.text_input("Phone", "")
 cust_addr = st.text_input("Address", "")
@@ -186,18 +169,18 @@ supply_type = "intra" if "Intra" in supply else "inter"
 st.write("---")
 
 st.subheader("Add Item")
-ic1, ic2, ic3, ic4 = st.columns(4)
+ic1,ic2,ic3,ic4 = st.columns(4)
 with ic1: iname = st.text_input("Item Name")
 with ic2: iqty = st.number_input("Qty", 1, 1000, 1)
 with ic3: iprice = st.number_input("Price", 0.0)
-with ic4: igst = st.selectbox("GST%", [0, 5, 12, 18, 28], index=2)
+with ic4: igst = st.selectbox("GST%", [0,5,12,18,28], index=2)
 
 if st.button("Add Item"):
     if iname:
         st.session_state.bill_items.append({"item": iname, "qty": iqty, "price": iprice, "gst": igst})
         st.rerun()
 
-discount = st.number_input("Discount Rs", 0.0)
+discount = st.number_input("Discount Rs (Pehle lagega)", 0.0)
 
 if st.session_state.bill_items:
     for idx, it in enumerate(st.session_state.bill_items):
@@ -205,138 +188,100 @@ if st.session_state.bill_items:
 
 if st.button("🧾 Royal PDF Banao"):
     if not st.session_state.bill_items:
-        st.warning("Pehle item add karo")
-        st.stop()
+        st.warning("Pehle item add karo"); st.stop()
 
     bill_no = get_next_invoice_number()
 
     class InvoicePDF(FPDF):
         def header(self):
-            self.set_fill_color(15,32,64)
-            self.rect(0,0,210,34,"F")
-            self.set_y(6)
-            self.set_font("helvetica","B",18)
-            self.set_text_color(255,215,0)
+            self.set_fill_color(15,32,64); self.rect(0,0,210,34,"F"); self.set_y(6)
+            self.set_font("helvetica","B",18); self.set_text_color(255,215,0)
             self.cell(0,9,SELLER_NAME,align="C",ln=True)
-            self.set_font("helvetica","",8)
-            self.set_text_color(255,255,255)
+            self.set_font("helvetica","",8); self.set_text_color(255,255,255)
             self.cell(0,5,SELLER_ADDRESS,align="C",ln=True)
             self.cell(0,5,f"Phone: {SELLER_PHONE} | Email: {SELLER_EMAIL}",align="C",ln=True)
         def footer(self):
-            self.set_y(-18)
-            self.set_font("helvetica","",8)
-            self.set_text_color(100,100,100)
-            # IST TIME KE SATH
+            self.set_y(-18); self.set_font("helvetica","",8); self.set_text_color(100,100,100)
             self.cell(0,5,f"Thank you! | {MY_FOOTER} | {datetime.now(IST).strftime('%d-%m-%Y %I:%M %p')}",align="C",ln=True)
 
-    pdf = InvoicePDF()
-    pdf.set_auto_page_break(auto=True, margin=20)
-    pdf.add_page()
-    pdf.set_y(40)
-
-    pdf.set_font("helvetica","B",10)
-    pdf.set_text_color(15,32,64)
+    pdf = InvoicePDF(); pdf.set_auto_page_break(auto=True, margin=20); pdf.add_page(); pdf.set_y(40)
+    pdf.set_font("helvetica","B",10); pdf.set_text_color(15,32,64)
     pdf.cell(100,7,f"Invoice No: {bill_no}")
-    pdf.set_font("helvetica","",10)
-    pdf.set_text_color(80,80,80)
-    pdf.cell(0,7,f"Date: {datetime.now(IST).strftime('%d-%m-%Y %I:%M %p')}",align="R",ln=True)
-    pdf.ln(4)
+    pdf.set_font("helvetica","",10); pdf.set_text_color(80,80,80)
+    pdf.cell(0,7,f"Date: {datetime.now(IST).strftime('%d-%m-%Y %I:%M %p')}",align="R",ln=True); pdf.ln(4)
 
-    pdf.set_fill_color(240,245,255)
-    pdf.set_draw_color(180,190,210)
-    y = pdf.get_y()
-    pdf.rect(10,y,190,22,"DF")
-    pdf.set_xy(14,y+3)
-    pdf.set_font("helvetica","B",11)
-    pdf.set_text_color(0,90,170)
+    pdf.set_fill_color(240,245,255); pdf.set_draw_color(180,190,210); y=pdf.get_y(); pdf.rect(10,y,190,22,"DF")
+    pdf.set_xy(14,y+3); pdf.set_font("helvetica","B",11); pdf.set_text_color(0,90,170)
     pdf.cell(0,6,f"BILL TO: {cust_name}",ln=True)
-    pdf.set_font("helvetica","",9)
-    pdf.set_text_color(60,60,60)
-    pdf.set_x(14)
-    pdf.cell(0,5,f"Phone: {cust_phone} | Address: {cust_addr}",ln=True)
-    pdf.set_y(y+26)
+    pdf.set_font("helvetica","",9); pdf.set_text_color(60,60,60); pdf.set_x(14)
+    pdf.cell(0,5,f"Phone: {cust_phone} | Address: {cust_addr}",ln=True); pdf.set_y(y+26)
 
-    pdf.set_font("helvetica","B",10)
-    pdf.set_text_color(15,32,64)
-    if supply_type == "intra": pdf.cell(0,7,"Supply Type: Intra-State (CGST + SGST)",ln=True)
+    pdf.set_font("helvetica","B",10); pdf.set_text_color(15,32,64)
+    if supply_type=="intra": pdf.cell(0,7,"Supply Type: Intra-State (CGST + SGST)",ln=True)
     else: pdf.cell(0,7,"Supply Type: Inter-State (IGST)",ln=True)
     pdf.ln(2)
 
-    col_widths = [48,18,28,22,24,45]
-    headers = ["Item","Qty","Price","GST %","Tax","Amount"]
-    pdf.set_fill_color(15,32,64)
-    pdf.set_text_color(255,215,0)
-    pdf.set_font("helvetica","B",9)
-    for i, h in enumerate(headers): pdf.cell(col_widths[i],9,h,border=1,align="C",fill=True)
+    col_widths=[48,18,28,22,24,45]; headers=["Item","Qty","Price","GST %","Tax","Amount"]
+    pdf.set_fill_color(15,32,64); pdf.set_text_color(255,215,0); pdf.set_font("helvetica","B",9)
+    for i,h in enumerate(headers): pdf.cell(col_widths[i],9,h,border=1,align="C",fill=True)
     pdf.ln()
 
-    subtotal = 0.0
-    total_gst = 0.0
-    for idx, data in enumerate(st.session_state.bill_items):
-        base = data["qty"] * data["price"]
-        tax = base * (data["gst"] / 100.0)
-        subtotal += base
-        total_gst += tax
-        if idx % 2 == 0: pdf.set_fill_color(240,245,255)
+    # ======= REAL LOGIC: DISCOUNT PEHLE, GST BAAD =======
+    subtotal = sum(d["qty"]*d["price"] for d in st.session_state.bill_items)
+    taxable_value = max(0, subtotal - discount)
+
+    # Har item ka GST discount ke baad
+    pdf_rows=[]
+    total_gst_after_discount=0
+    for data in st.session_state.bill_items:
+        item_base = data["qty"]*data["price"]
+        share = (item_base/subtotal*discount) if subtotal>0 else 0
+        item_taxable = item_base - share
+        item_tax = item_taxable * (data["gst"]/100.0)
+        total_gst_after_discount += item_tax
+        pdf_rows.append((data, item_base, share, item_taxable, item_tax))
+
+    for idx,(data, base, share, item_taxable, item_tax) in enumerate(pdf_rows):
+        if idx%2==0: pdf.set_fill_color(240,245,255)
         else: pdf.set_fill_color(255,255,255)
-        pdf.set_font("helvetica","",9)
-        pdf.set_text_color(20,20,20)
+        pdf.set_font("helvetica","",9); pdf.set_text_color(20,20,20)
         pdf.cell(col_widths[0],8,data["item"][:28],border=1,align="C",fill=True)
         pdf.cell(col_widths[1],8,str(data["qty"]),border=1,align="C",fill=True)
         pdf.cell(col_widths[2],8,f"{data['price']:.2f}",border=1,align="C",fill=True)
         pdf.cell(col_widths[3],8,f"{data['gst']:g}%",border=1,align="C",fill=True)
-        pdf.cell(col_widths[4],8,f"{tax:.2f}",border=1,align="C",fill=True)
-        pdf.cell(col_widths[5],8,f"{base + tax:.2f}",border=1,align="C",fill=True)
+        pdf.cell(col_widths[4],8,f"{item_tax:.2f}",border=1,align="C",fill=True)
+        pdf.cell(col_widths[5],8,f"{item_taxable+item_tax:.2f}",border=1,align="C",fill=True)
         pdf.ln()
 
-    taxable_value = subtotal - discount
-    if taxable_value < 0: taxable_value = 0
-    discount_ratio = taxable_value / subtotal if subtotal > 0 else 0
-    adjusted_gst = total_gst * discount_ratio if subtotal > 0 else 0
-    final_bill = taxable_value + adjusted_gst
-    if supply_type == "intra": cgst = adjusted_gst/2; sgst = adjusted_gst/2; igst = 0
-    else: cgst = 0; sgst = 0; igst = adjusted_gst
+    final_bill = taxable_value + total_gst_after_discount
+    if supply_type=="intra": cgst=total_gst_after_discount/2; sgst=total_gst_after_discount/2; igst=0
+    else: cgst=0; sgst=0; igst=total_gst_after_discount
 
-    pdf.ln(5)
-    pdf.set_font("helvetica","",10)
-    pdf.set_text_color(60,60,60)
-    pdf.cell(135,7,"Subtotal:",align="R")
-    pdf.cell(0,7,f"Rs {subtotal:.2f}",align="R",ln=True)
-    if discount > 0:
+    pdf.ln(5); pdf.set_font("helvetica","",10); pdf.set_text_color(60,60,60)
+    pdf.cell(135,7,"Subtotal:",align="R"); pdf.cell(0,7,f"Rs {subtotal:.2f}",align="R",ln=True)
+    if discount>0:
         pdf.set_text_color(180,60,20)
-        pdf.cell(135,7,"Discount:",align="R")
-        pdf.cell(0,7,f"- Rs {discount:.2f}",align="R",ln=True)
+        pdf.cell(135,7,"Discount (Pehle):",align="R"); pdf.cell(0,7,f"- Rs {discount:.2f}",align="R",ln=True)
     pdf.set_text_color(60,60,60)
-    pdf.cell(135,7,"Taxable Value:",align="R")
-    pdf.cell(0,7,f"Rs {taxable_value:.2f}",align="R",ln=True)
-    if supply_type == "intra":
+    pdf.cell(135,7,"Taxable Value:",align="R"); pdf.cell(0,7,f"Rs {taxable_value:.2f}",align="R",ln=True)
+    if supply_type=="intra":
         pdf.cell(135,7,"CGST:",align="R"); pdf.cell(0,7,f"Rs {cgst:.2f}",align="R",ln=True)
         pdf.cell(135,7,"SGST:",align="R"); pdf.cell(0,7,f"Rs {sgst:.2f}",align="R",ln=True)
     else:
         pdf.cell(135,7,"IGST:",align="R"); pdf.cell(0,7,f"Rs {igst:.2f}",align="R",ln=True)
 
-    pdf.set_text_color(200,80,0)
-    pdf.set_font("helvetica","B",10)
-    pdf.cell(135,7,"Total GST:",align="R")
-    pdf.cell(0,7,f"Rs {adjusted_gst:.2f}",align="R",ln=True)
+    pdf.set_text_color(200,80,0); pdf.set_font("helvetica","B",10)
+    pdf.cell(135,7,"Total GST (Baad me):",align="R"); pdf.cell(0,7,f"Rs {total_gst_after_discount:.2f}",align="R",ln=True)
     pdf.ln(3)
-    pdf.set_fill_color(15,32,64)
-    pdf.set_text_color(255,215,0)
-    pdf.set_font("helvetica","B",13)
-    pdf.cell(135,12,"FINAL PAYABLE:",align="R",fill=True)
-    pdf.cell(0,12,f"Rs {final_bill:.2f}",align="R",fill=True,ln=True)
+    pdf.set_fill_color(15,32,64); pdf.set_text_color(255,215,0); pdf.set_font("helvetica","B",13)
+    pdf.cell(135,12,"FINAL PAYABLE:",align="R",fill=True); pdf.cell(0,12,f"Rs {final_bill:.2f}",align="R",fill=True,ln=True)
     pdf.ln(4)
-    pdf.set_font("helvetica","B",9)
-    pdf.set_text_color(15,32,64)
-    pdf.cell(0,6,"Amount in Words:",ln=True)
-    pdf.set_font("helvetica","",9)
-    pdf.set_text_color(60,60,60)
-    pdf.multi_cell(0,5,amount_in_words(final_bill))
+    pdf.set_font("helvetica","B",9); pdf.set_text_color(15,32,64); pdf.cell(0,6,"Amount in Words:",ln=True)
+    pdf.set_font("helvetica","",9); pdf.set_text_color(60,60,60); pdf.multi_cell(0,5,amount_in_words(final_bill))
 
     pdf.output("bill.pdf")
     with open("bill.pdf","rb") as f:
         st.download_button("📥 Download Royal Bill", f, file_name=f"{cust_name}_{bill_no}.pdf")
 
 if st.button("Clear All"):
-    st.session_state.bill_items = []
-    st.rerun()
+    st.session_state.bill_items=[]; st.rerun()
